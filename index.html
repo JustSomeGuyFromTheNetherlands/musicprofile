@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <title>TibbevanZ's last.fm profile</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          keyframes: {
+            'float-in': {
+              '0%': { transform: 'translateY(20px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' },
+            },
+            'fade-in': {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+          },
+          animation: {
+            'float-in': 'float-in 0.5s ease-out forwards',
+            'fade-in': 'fade-in 0.7s ease-in forwards',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { transition: background-color 0.7s ease; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
+    .tab-active { border-color: #db2777; color: #db2777; }
+    .dark .tab-active { border-color: #f9a8d4; color: #f9a8d4; }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-200">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo, useCallback, memo } = React;
+
+    // --- CONFIGURATION ---
+    const API_KEY = "cb5a6898ada36212ac6de37f6b6ca333";
+    const DEFAULT_USERNAME = "TibbevanZ";
+    const API_BASE_URL = "https://ws.audioscrobbler.com/2.0/";
+
+    // --- HELPERS & UTILS ---
+    const apiCache = {};
+    const fetchWithCache = async (params) => {
+      const cacheKey = JSON.stringify(params);
+      if (apiCache[cacheKey]) return apiCache[cacheKey];
+      const promise = axios.get(API_BASE_URL, { params: { api_key: API_KEY, format: 'json', ...params } }).then(res => res.data);
+      apiCache[cacheKey] = promise;
+      return promise;
+    };
+
+    // --- REUSABLE UI COMPONENTS ---
+    const ItemCard = memo(({ item, onArtistClick, isRecommendation = false }) => {
+        const imageSrc = item.image?.[3]?.['#text'] || 'https://via.placeholder.com/300';
+        const isArtistCard = !item.artist;
+
+        const content = (
+          <div className="bg-white/60 dark:bg-slate-800/60 p-4 rounded-lg shadow-md hover:shadow-2xl transition-all duration-300 group backdrop-blur-sm border border-white/20 h-full flex flex-col">
+            <div className="relative">
+              <img src={imageSrc} alt={item.name} loading="lazy" className="w-full h-48 object-cover rounded-md transition-transform duration-300 group-hover:scale-105" />
+              {isRecommendation && <div className="absolute top-2 right-2 bg-pink-600 text-white text-xs font-bold px-2 py-1 rounded-full">NEW</div>}
+            </div>
+            <div className="mt-3 flex-grow">
+              <h3 className="font-bold truncate text-lg">{item.name}</h3>
+              {item.artist && <p className="text-sm text-slate-600 dark:text-slate-400 truncate">{item.artist.name}</p>}
+            </div>
+            {item.playcount && <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">{parseInt(item.playcount).toLocaleString()} plays</p>}
+          </div>
+        );
+
+        if (isArtistCard) return <button onClick={() => onArtistClick(item)} className="text-left">{content}</button>;
+        return <a href={item.url} target="_blank" rel="noopener noreferrer">{content}</a>;
+    });
+
+    const Section = ({ title, items, children, onArtistClick, isRecommendation = false }) => (
+      <section className="mb-16 animate-float-in">
+        <h2 className="text-3xl font-bold mb-6 text-slate-900 dark:text-white">{title}</h2>
+        {items?.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {items.map((item, index) => <ItemCard key={`${item.name}-${item.artist?.name}-${index}`} item={item} onArtistClick={onArtistClick} isRecommendation={isRecommendation} />)}
+          </div>
+        ) : children}
+      </section>
+    );
+    
+    // --- NEW & ADVANCED COMPONENTS ---
+
+    const AppLoader = ({ onLoaded }) => {
+        const [status, setStatus] = useState("Initializing Audio Core...");
+        const [progress, setProgress] = useState(0);
+        const statuses = ["Connecting to The Echo Nest...", "Calibrating Scrobble Matrix...", "Analyzing Listening Patterns...", "Compiling Top Charts...", "Ready!"];
+        
+        useEffect(() => {
+            const interval = setInterval(() => {
+                setProgress(prev => {
+                    const newProgress = prev + 1;
+                    if (newProgress < statuses.length) {
+                        setStatus(statuses[newProgress - 1]);
+                    } else {
+                        clearInterval(interval);
+                        setTimeout(onLoaded, 500); // Wait half a second on "Ready!"
+                    }
+                    return newProgress;
+                });
+            }, 600);
+            return () => clearInterval(interval);
+        }, []);
+
+        return (
+            <div className="fixed inset-0 bg-slate-100 dark:bg-slate-900 flex flex-col items-center justify-center z-[100]">
+                <div className="w-full max-w-md text-center">
+                    <svg className="w-24 h-24 mx-auto text-pink-500 animate-pulse" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"></path><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"></path></svg>
+                    <h1 className="text-3xl font-bold mt-4">TibbevanZ's music profile</h1>
+                    <p className="mt-2 text-slate-500 dark:text-slate-400">{status}</p>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mt-6">
+                        <div className="bg-pink-600 h-2.5 rounded-full transition-all duration-500" style={{width: `${(progress / statuses.length) * 100}%`}}></div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const FriendComparerModal = ({ user, onClose }) => {
+        const [friendName, setFriendName] = useState('');
+        const [comparison, setComparison] = useState(null);
+        const [loading, setLoading] = useState(false);
+
+        const handleCompare = async (e) => {
+            e.preventDefault();
+            if (!friendName) return;
+            setLoading(true);
+            const data = await fetchWithCache({ method: 'user.compare', user1: user, user2: friendName });
+            setComparison(data.comparison);
+            setLoading(false);
+        };
+
+        return (
+            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+                <div className="bg-slate-100 dark:bg-slate-900 rounded-xl max-w-md w-full shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+                    <h2 className="text-2xl font-bold mb-4">Compare Tastes</h2>
+                    <form onSubmit={handleCompare} className="flex gap-2 mb-4">
+                        <input type="text" value={friendName} onChange={e => setFriendName(e.target.value)} placeholder="Friend's username..." className="flex-grow px-3 py-2 rounded-md bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-pink-500 focus:outline-none transition" />
+                        <button type="submit" className="px-4 py-2 bg-pink-600 text-white rounded-md font-semibold hover:bg-pink-700 transition" disabled={loading}>{loading ? '...' : 'Compare'}</button>
+                    </form>
+                    {comparison && (
+                        <div className="animate-float-in">
+                            <h3 className="font-bold">Result for {comparison.result.input.user[1].name}</h3>
+                            <p className="text-4xl font-bold my-2" style={{color: `hsl(${(comparison.result.score * 120)}, 80%, 40%)`}}>{(comparison.result.score * 100).toFixed(1)}% Match</p>
+                            <p className="font-bold mt-4">Common Artists:</p>
+                            <ul className="text-sm list-disc list-inside">{comparison.result.artists.artist.slice(0, 5).map(a => <li key={a.name}>{a.name}</li>)}</ul>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const ScrobbleHeatmap = ({ username }) => {
+        const [data, setData] = useState(null);
+        const [loading, setLoading] = useState(true);
+
+        useEffect(() => {
+            const processScrobbles = (tracks) => {
+                const counts = {};
+                tracks.forEach(track => {
+                    if (track.date) {
+                        const date = new Date(track.date.uts * 1000);
+                        const dayKey = date.toISOString().split('T')[0];
+                        counts[dayKey] = (counts[dayKey] || 0) + 1;
+                    }
+                });
+                return counts;
+            };
+
+            const fetchAllScrobbles = async () => {
+                const totalPages = 50; // 50 pages * 200 tracks/page = 10,000 tracks
+                let allTracks = [];
+                for (let i = 1; i <= totalPages; i++) {
+                    const res = await fetchWithCache({ method: 'user.getrecenttracks', user: username, limit: 200, page: i });
+                    const tracks = res.recenttracks?.track || [];
+                    if (tracks.length === 0) break;
+                    allTracks = allTracks.concat(tracks);
+                }
+                return processScrobbles(allTracks);
+            };
+
+            fetchAllScrobbles().then(counts => {
+                setData(counts);
+                setLoading(false);
+            });
+        }, [username]);
+
+        const grid = useMemo(() => {
+            if (!data) return { days: [], months: [] };
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(endDate.getDate() - 365);
+            
+            let days = [];
+            let currentDay = new Date(startDate);
+            while(currentDay <= endDate) {
+                const dayKey = currentDay.toISOString().split('T')[0];
+                days.push({ date: new Date(currentDay), count: data[dayKey] || 0 });
+                currentDay.setDate(currentDay.getDate() + 1);
+            }
+
+            const firstDayOffset = startDate.getDay();
+            for (let i = 0; i < firstDayOffset; i++) {
+                days.unshift({ date: null, count: -1 });
+            }
+
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthLabels = [];
+            let lastMonth = -1;
+            days.forEach((day, i) => {
+              if(day.date && day.date.getMonth() !== lastMonth) {
+                monthLabels.push({ label: months[day.date.getMonth()], index: Math.floor(i / 7) });
+                lastMonth = day.date.getMonth();
+              }
+            });
+
+            return { days, monthLabels };
+        }, [data]);
+        
+        if (loading) return <p className="text-center">Analyzing up to 10,000 recent scrobbles... this may take a moment.</p>;
+
+        return (
+          <div>
+            <div className="grid grid-flow-col" style={{gridTemplateRows: 'repeat(7, 1fr)', gridAutoColumns: 'minmax(0, 1fr)'}}>
+              {grid.days.map((day, i) => {
+                  let color = 'bg-slate-200 dark:bg-slate-700';
+                  if (day.count > 0) color = 'bg-green-200 dark:bg-green-900';
+                  if (day.count > 5) color = 'bg-green-400 dark:bg-green-700';
+                  if (day.count > 20) color = 'bg-green-600 dark:bg-green-500';
+                  if (day.count > 50) color = 'bg-green-800 dark:bg-green-300';
+                  if (day.count === -1) color = 'opacity-0';
+
+                  return (
+                    <div key={i} className="aspect-square m-px rounded-sm relative group" title={day.date ? `${day.date.toDateString()}: ${day.count} scrobbles` : ''}>
+                      <div className={`w-full h-full ${color}`}></div>
+                    </div>
+                  );
+              })}
+            </div>
+          </div>
+        );
+    };
+
+    const Recommendations = ({ username, topArtists }) => {
+        const [recs, setRecs] = useState([]);
+        const [loading, setLoading] = useState(true);
+
+        useEffect(() => {
+          if (!topArtists || topArtists.length === 0) return;
+          
+          const getRecs = async () => {
+              const topArtistNames = topArtists.map(a => a.name.toLowerCase());
+              const similarArtistPromises = topArtists.slice(0, 5).map(artist => 
+                  fetchWithCache({ method: 'artist.getsimilar', artist: artist.name, limit: 5 })
+              );
+              
+              const similarArtistResults = await Promise.all(similarArtistPromises);
+              const recommendations = {};
+              
+              similarArtistResults.forEach(res => {
+                  const artists = res.similarartists?.artist || [];
+                  artists.forEach(artist => {
+                      if (!topArtistNames.includes(artist.name.toLowerCase())) {
+                          recommendations[artist.name] = artist;
+                      }
+                  });
+              });
+              
+              setRecs(Object.values(recommendations).slice(0, 4));
+              setLoading(false);
+          };
+
+          getRecs();
+        }, [topArtists]);
+
+        if (loading) return <p>Finding new music for you...</p>
+
+        return <Section title="You Might Like" items={recs} isRecommendation={true} onArtistClick={() => {}} />;
+    }
+
+    // --- MAIN APP ---
+    function LastfmDashboard() {
+      const [appState, setAppState] = useState(() => {
+        const hash = new URLSearchParams(window.location.hash.substring(1));
+        return { username: hash.get('user') || DEFAULT_USERNAME, period: hash.get('period') || 'overall', activeTab: hash.get('tab') || 'overview' };
+      });
+      const [isAppReady, setIsAppReady] = useState(false);
+      
+      const [data, setData] = useState({ topArtists: [], topTracks: [], topAlbums: [] });
+      const [userInfo, setUserInfo] = useState({});
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      const [showComparer, setShowComparer] = useState(false);
+
+      // Effect for fetching main overview data after app loads
+      useEffect(() => {
+        if (!isAppReady) return;
+        setLoading(true); setError(null);
+
+        fetchWithCache({ method: 'user.getinfo', user: appState.username })
+          .then(infoData => setUserInfo(infoData.user || {}))
+          .catch(err => setError(`Failed to fetch user info for "${appState.username}".`));
+        
+        Promise.all([
+          fetchWithCache({ method: 'user.gettopartists', user: appState.username, period: appState.period, limit: 8 }),
+          fetchWithCache({ method: 'user.gettoptracks', user: appState.username, period: appState.period, limit: 8 }),
+          fetchWithCache({ method: 'user.gettopalbums', user: appState.username, period: appState.period, limit: 8 }),
+        ]).then(([artistsData, tracksData, albumsData]) => {
+          setData({
+            topArtists: artistsData.topartists?.artist || [],
+            topTracks: tracksData.toptracks?.track || [],
+            topAlbums: albumsData.topalbums?.album || [],
+          });
+        }).catch(err => {
+          setError(`Failed to fetch chart data for "${appState.username}".`);
+        }).finally(() => setLoading(false));
+      }, [appState.username, appState.period, isAppReady]);
+
+      return (
+        <div>
+          {!isAppReady && <AppLoader onLoaded={() => setIsAppReady(true)} />}
+          <div className={isAppReady ? 'animate-fade-in' : 'opacity-0'}>
+            {showComparer && <FriendComparerModal user={appState.username} onClose={() => setShowComparer(false)} />}
+            <div className="max-w-7xl mx-auto p-4 md:p-8">
+              {/* Header */}
+              <header className="flex flex-col md:flex-row justify-between items-center mb-10 sticky top-4 z-10 bg-white/30 dark:bg-slate-800/30 backdrop-blur-xl p-4 rounded-xl shadow-lg border border-white/20">
+                <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-4 md:mb-0">TibbevanZ's music profile</h1>
+                <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                  <button onClick={() => setShowComparer(true)} className="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition">Compare</button>
+                  {/* ... other controls ... */}
+                </div>
+              </header>
+              {/* Profile */}
+              <section className="flex flex-col sm:flex-row items-center mb-12 bg-white/60 dark:bg-slate-800/60 p-6 rounded-lg shadow-lg backdrop-blur-sm border border-white/20">
+                 {loading ? <div className="w-32 h-32 bg-slate-300 dark:bg-slate-700 rounded-full animate-pulse mr-6 flex-shrink-0"></div> : <img src={userInfo?.image?.[3]?.['#text']} alt="profile" className="w-32 h-32 rounded-full mr-6 shadow-md border-4 border-white/50" />}
+                 <div className="text-center sm:text-left mt-4 sm:mt-0">
+                    <h1 className="text-4xl font-bold">{userInfo.name || '...'}</h1>
+                 </div>
+              </section>
+              {/* Tabs */}
+              <nav className="flex space-x-4 border-b-2 border-slate-300 dark:border-slate-700 mb-8">
+                {['overview', 'trends', 'history'].map(tab => (
+                  <button key={tab} onClick={() => setAppState(s => ({...s, activeTab: tab}))} className={`py-3 px-4 font-semibold border-b-4 transition-colors duration-300 ${appState.activeTab === tab ? 'tab-active' : 'border-transparent hover:border-slate-400 dark:hover:border-slate-500' }`}>
+                    <span className="capitalize">{tab}</span>
+                  </button>
+                ))}
+              </nav>
+              {/* Content */}
+              <main>
+                {appState.activeTab === 'overview' && (
+                  <div className="space-y-16">
+                    <Section title="Top Artists" items={data.topArtists} />
+                    <Section title="Top Tracks" items={data.topTracks} />
+                    <Section title="Top Albums" items={data.topAlbums} />
+                    <Recommendations username={appState.username} topArtists={data.topArtists} />
+                  </div>
+                )}
+                {appState.activeTab === 'history' && <ScrobbleHeatmap username={appState.username} />}
+                {/* Trends tab content would go here */}
+              </main>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(React.createElement(LastfmDashboard));
+  </script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</body>
+</html>
