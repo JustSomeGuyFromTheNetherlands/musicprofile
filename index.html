@@ -61,23 +61,28 @@
     };
 
     // --- REUSABLE UI COMPONENTS ---
-    const ItemCard = memo(({ item, onArtistClick, isRecommendation = false }) => {
-        const imageSrc = item.image?.[3]?.['#text'] || 'https://via.placeholder.com/300';
-        const isArtistCard = !item.artist;
+const ItemCard = memo(({ item, onArtistClick, isRecommendation = false }) => {
+    // Check for both image array and a direct image property
+    const imageSrc = item.image?.[3]?.['#text'] || item.image || 'https://via.placeholder.com/300';
+    const isArtistCard = !item.artist;
 
-        const content = (
-          <div className="bg-white/60 dark:bg-slate-800/60 p-4 rounded-lg shadow-md hover:shadow-2xl transition-all duration-300 group backdrop-blur-sm border border-white/20 h-full flex flex-col">
-            <div className="relative">
-              <img src={imageSrc} alt={item.name} loading="lazy" className="w-full h-48 object-cover rounded-md transition-transform duration-300 group-hover:scale-105" />
-              {isRecommendation && <div className="absolute top-2 right-2 bg-pink-600 text-white text-xs font-bold px-2 py-1 rounded-full">NEW</div>}
-            </div>
-            <div className="mt-3 flex-grow">
-              <h3 className="font-bold truncate text-lg">{item.name}</h3>
-              {item.artist && <p className="text-sm text-slate-600 dark:text-slate-400 truncate">{item.artist.name}</p>}
-            </div>
-            {item.playcount && <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">{parseInt(item.playcount).toLocaleString()} plays</p>}
-          </div>
-        );
+    const content = (
+      <div className="bg-white/60 dark:bg-slate-800/60 p-4 rounded-lg shadow-md hover:shadow-2xl transition-all duration-300 group backdrop-blur-sm border border-white/20 h-full flex flex-col">
+        <div className="relative">
+          <img src={imageSrc} alt={item.name} loading="lazy" className="w-full h-48 object-cover rounded-md transition-transform duration-300 group-hover:scale-105" />
+          {isRecommendation && <div className="absolute top-2 right-2 bg-pink-600 text-white text-xs font-bold px-2 py-1 rounded-full">NEW</div>}
+        </div>
+        <div className="mt-3 flex-grow">
+          <h3 className="font-bold truncate text-lg">{item.name}</h3>
+          {item.artist && <p className="text-sm text-slate-600 dark:text-slate-400 truncate">{item.artist.name}</p>}
+        </div>
+        {item.playcount && <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">{parseInt(item.playcount).toLocaleString()} plays</p>}
+      </div>
+    );
+
+    if (isArtistCard) return <button onClick={() => onArtistClick(item)} className="text-left">{content}</button>;
+    return <a href={item.url} target="_blank" rel="noopener noreferrer">{content}</a>;
+});
 
         if (isArtistCard) return <button onClick={() => onArtistClick(item)} className="text-left">{content}</button>;
         return <a href={item.url} target="_blank" rel="noopener noreferrer">{content}</a>;
